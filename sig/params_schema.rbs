@@ -1,0 +1,166 @@
+module ParamsSchema
+  VERSION: String
+
+  type unknown_policy = :drop | :reject
+  type scalar_constant = String | Integer | Float | bool
+  type default_value = scalar_constant? | Array[default_value] | Hash[String | Symbol, default_value] | ::ActionController::Parameters
+  type collection_default = Array[default_value] | Hash[String | Symbol, default_value] | ::ActionController::Parameters
+  type primitive_type = :string | :integer | :float | :boolean | :scalar | :uploaded_file
+  type value_rule = Rule
+  type element_rule = primitive_type | :hash | value_rule
+
+  module Testing
+    type input_case = { value: untyped, ?error_code: Symbol? }
+    def self.request_cases: (path: Array[String | Symbol | Integer], ?required: bool, ?allow_nil: bool,
+                             ?integer: Range[Integer?]?, ?representation: :integer | :string,
+                             ?cases: Array[input_case]) -> Array[RequestCase]
+
+    class RequestCase
+      attr_reader path: Array[String | Integer]
+      attr_reader error_code: Symbol?
+      attr_reader description: String
+      def valid?: () -> bool
+      def omitted?: () -> bool
+      def value: () -> untyped
+      def params: (Hash[untyped, untyped]) -> Hash[untyped, untyped]
+    end
+  end
+
+  # Opaque handle returned by Builder#value. Construction and representation
+  # are internal; the Ruby constant remains private.
+  class Rule
+  end
+
+  # Only the yielded DSL is public, not the constant or its constructor.
+  class Builder
+    def value: (element_rule) -> value_rule
+             | (:string, ?allow_nil: bool, ?in: Array[String], ?empty_string_to_nil: bool, ?min_bytes: Integer,
+                ?max_bytes: Integer, ?format: Regexp, ?multiline: bool) -> value_rule
+             | (:integer, ?allow_nil: bool, ?in: Array[Integer] | Range[Integer?],
+                ?coerce: bool, ?empty_string_to_nil: bool) -> value_rule
+             | (:float, ?allow_nil: bool, ?in: Array[Float] | Range[(Integer | Float)?],
+                ?coerce: bool, ?empty_string_to_nil: bool) -> value_rule
+             | (:boolean, ?allow_nil: bool, ?in: Array[bool], ?coerce: bool, ?empty_string_to_nil: bool) -> value_rule
+             | (:scalar, ?allow_nil: bool, ?in: Array[scalar_constant], ?empty_string_to_nil: bool) -> value_rule
+             | (primitive_type, ?allow_nil: bool) -> value_rule
+             | (:hash, ?allow_nil: bool, ?reject_empty: bool) -> value_rule
+             | (:object, ?allow_nil: bool, ?unknown: unknown_policy, ?reject_empty: bool) { (Builder) -> void } -> value_rule
+             | (:array, of: element_rule, ?allow_nil: bool, ?min_size: Integer,
+                ?max_size: Integer, ?drop_empty_strings: bool) -> value_rule
+             | (:array, ?allow_nil: bool, ?min_size: Integer, ?max_size: Integer,
+                ?drop_empty_strings: bool, ?unknown: unknown_policy) { (Builder) -> void } -> value_rule
+             | (:map, of: element_rule, ?allow_nil: bool, ?min_size: Integer,
+                ?max_size: Integer, ?keys: Regexp, ?multiline: bool) -> value_rule
+             | (:map, ?allow_nil: bool, ?min_size: Integer, ?max_size: Integer,
+                ?keys: Regexp, ?multiline: bool, ?unknown: unknown_policy) { (Builder) -> void } -> value_rule
+             | (:collection, of: value_rule, ?allow_nil: bool, ?min_size: Integer,
+                ?max_size: Integer) -> value_rule
+             | (:collection, ?allow_nil: bool, ?min_size: Integer, ?max_size: Integer,
+                ?unknown: unknown_policy) { (Builder) -> void } -> value_rule
+             | (:one_or_many, of: primitive_type | value_rule, ?allow_nil: bool, ?min_size: Integer,
+                ?max_size: Integer, ?drop_empty_strings: bool) -> value_rule
+
+    def param: (String | Symbol, value_rule, ?required: bool, ?default: default_value) -> nil
+             | (String | Symbol, element_rule, ?required: bool) -> nil
+             | (String | Symbol, :string, ?required: bool, ?default: String?,
+                ?allow_nil: bool, ?in: Array[String], ?empty_string_to_nil: bool, ?min_bytes: Integer,
+                ?max_bytes: Integer, ?format: Regexp, ?multiline: bool) -> nil
+             | (String | Symbol, :integer, ?required: bool, ?default: Integer?,
+                ?allow_nil: bool, ?in: Array[Integer] | Range[Integer?], ?coerce: bool, ?empty_string_to_nil: bool) -> nil
+             | (String | Symbol, :float, ?required: bool, ?default: Float?,
+                ?allow_nil: bool, ?in: Array[Float] | Range[(Integer | Float)?], ?coerce: bool, ?empty_string_to_nil: bool) -> nil
+             | (String | Symbol, :boolean, ?required: bool, ?default: bool?,
+                ?allow_nil: bool, ?in: Array[bool], ?coerce: bool, ?empty_string_to_nil: bool) -> nil
+             | (String | Symbol, :scalar, ?required: bool, ?default: scalar_constant?,
+                ?allow_nil: bool, ?in: Array[scalar_constant], ?empty_string_to_nil: bool) -> nil
+             | (String | Symbol, primitive_type, ?required: bool, ?allow_nil: bool) -> nil
+             | (String | Symbol, :uploaded_file, ?required: bool, ?allow_nil: bool, ?default: nil) -> nil
+             | (String | Symbol, :hash, ?required: bool, ?allow_nil: bool, ?reject_empty: bool,
+                ?default: (Hash[String | Symbol, default_value] | ::ActionController::Parameters)?) -> nil
+             | (String | Symbol, :array, of: element_rule, ?required: bool, ?default: Array[default_value]?,
+                ?allow_nil: bool, ?min_size: Integer, ?max_size: Integer, ?drop_empty_strings: bool) -> nil
+             | (String | Symbol, :map, of: element_rule, ?required: bool,
+                ?default: (Hash[String | Symbol, default_value] | ::ActionController::Parameters)?,
+                ?allow_nil: bool, ?min_size: Integer, ?max_size: Integer,
+                ?keys: Regexp, ?multiline: bool) -> nil
+             | (String | Symbol, :collection, of: value_rule, ?required: bool,
+                ?default: collection_default?, ?allow_nil: bool,
+                ?min_size: Integer, ?max_size: Integer) -> nil
+             | (String | Symbol, :one_or_many, of: primitive_type | value_rule, ?required: bool,
+                ?default: (scalar_constant | Array[scalar_constant?])?, ?allow_nil: bool,
+                ?min_size: Integer, ?max_size: Integer, ?drop_empty_strings: bool) -> nil
+
+    def object: (String | Symbol, ?required: bool, ?allow_nil: bool,
+                 ?default: (Hash[String | Symbol, default_value] | ::ActionController::Parameters)?,
+                 ?unknown: unknown_policy, ?reject_empty: bool) { (Builder) -> void } -> nil
+
+    def array: (String | Symbol, of: element_rule, ?required: bool, ?default: Array[default_value]?,
+                ?allow_nil: bool, ?min_size: Integer, ?max_size: Integer, ?drop_empty_strings: bool) -> nil
+             | (String | Symbol, ?required: bool, ?allow_nil: bool, ?default: Array[default_value]?,
+                ?min_size: Integer, ?max_size: Integer, ?drop_empty_strings: bool,
+                ?unknown: unknown_policy) { (Builder) -> void } -> nil
+
+    def map: (String | Symbol, of: element_rule, ?required: bool, ?allow_nil: bool,
+              ?default: (Hash[String | Symbol, default_value] | ::ActionController::Parameters)?,
+              ?min_size: Integer, ?max_size: Integer, ?keys: Regexp, ?multiline: bool) -> nil
+           | (String | Symbol, ?required: bool, ?allow_nil: bool,
+              ?default: (Hash[String | Symbol, default_value] | ::ActionController::Parameters)?,
+              ?min_size: Integer, ?max_size: Integer, ?keys: Regexp, ?multiline: bool,
+              ?unknown: unknown_policy) { (Builder) -> void } -> nil
+
+    def collection: (String | Symbol, of: value_rule, ?required: bool, ?allow_nil: bool,
+                     ?default: collection_default?, ?min_size: Integer, ?max_size: Integer) -> nil
+                  | (String | Symbol, ?required: bool, ?allow_nil: bool, ?default: collection_default?,
+                     ?min_size: Integer, ?max_size: Integer, ?unknown: unknown_policy) { (Builder) -> void } -> nil
+
+    def one_or_many: (String | Symbol, of: primitive_type | value_rule, ?required: bool, ?allow_nil: bool,
+                      ?default: (scalar_constant | Array[scalar_constant?])?, ?min_size: Integer, ?max_size: Integer,
+                      ?drop_empty_strings: bool) -> nil
+  end
+
+  class Schema
+    def initialize: (?name: (String | Symbol)?, ?unknown: unknown_policy, ?reject_empty: bool) { (Builder) -> void } -> void
+    def parse: (Hash[untyped, untyped] | ::ActionController::Parameters) -> ::ActionController::Parameters
+    def parse!: (Hash[untyped, untyped] | ::ActionController::Parameters) -> ::ActionController::Parameters
+    def try_parse: (Hash[untyped, untyped] | ::ActionController::Parameters) -> Result
+  end
+
+  class Result
+    attr_reader error: ::ParamsSchema::InvalidParameters?
+    def success?: () -> bool
+    def value!: () -> ::ActionController::Parameters
+    def inspect: () -> String
+
+    private
+
+    def initialize: (::ActionController::Parameters?, ::ParamsSchema::InvalidParameters?) -> void
+  end
+
+  class InvalidParameters < ::StandardError
+    attr_reader path: Array[String | Integer]
+    attr_reader code: Symbol
+  end
+
+  class UnexpectedParameters < ::StandardError
+    attr_reader path: Array[String | Integer]
+    attr_reader code: Symbol
+  end
+
+  module Parameters
+    def parse: (Schema) -> ::ActionController::Parameters
+             | (?name: (String | Symbol)?, ?unknown: unknown_policy, ?reject_empty: bool) { (Builder) -> void } -> ::ActionController::Parameters
+    def parse!: (Schema) -> ::ActionController::Parameters
+              | (?name: (String | Symbol)?, ?unknown: unknown_policy, ?reject_empty: bool) { (Builder) -> void } -> ::ActionController::Parameters
+
+    module ClassMethods
+      def schema: (?name: (String | Symbol)?, ?unknown: unknown_policy, ?reject_empty: bool) { (Builder) -> void } -> Schema
+    end
+  end
+end
+
+module ActionController
+  class Parameters
+    include ::ParamsSchema::Parameters
+    extend ::ParamsSchema::Parameters::ClassMethods
+  end
+end

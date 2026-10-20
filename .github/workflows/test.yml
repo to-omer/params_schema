@@ -1,0 +1,83 @@
+name: CI
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: [ruby32, ruby33, ruby34, ruby40]
+        rails: ["8.0", "8.1"]
+        include:
+          - rails: "8.0"
+            gemfile: gemfiles/rails_8_0.gemfile
+          - rails: "8.1"
+            gemfile: Gemfile
+    env:
+      BUNDLE_GEMFILE: ${{ matrix.gemfile }}
+      BUNDLE_FROZEN: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@448cde739abec1eaf0646249e3d25bb8d9bc7702 # v31.11.2
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - run: nix develop .#${{ matrix.ruby }} --command bundle install
+      - name: Report runtime versions
+        run: >-
+          nix develop .#${{ matrix.ruby }} --command bundle exec ruby -raction_pack
+          -e 'puts RUBY_DESCRIPTION, "RubyGems #{Gem::VERSION}", "Bundler #{Bundler::VERSION}", "Action Pack #{ActionPack::VERSION::STRING}"'
+      - run: nix develop .#${{ matrix.ruby }} --command bundle exec rake test
+      - name: Test Ruby 3.2's bundled BigDecimal
+        if: matrix.ruby == 'ruby32' && matrix.rails == '8.1'
+        env:
+          BUNDLE_FROZEN: "false"
+        run: |
+          nix develop .#ruby32 --command bundle add bigdecimal --version 3.1.3
+          nix develop .#ruby32 --command bundle exec rake test
+
+  quality:
+    runs-on: ubuntu-latest
+    env:
+      BUNDLE_FROZEN: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@448cde739abec1eaf0646249e3d25bb8d9bc7702 # v31.11.2
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - run: nix develop --command bundle install
+      - run: nix develop --command bundle exec rbs collection install --frozen
+      - run: nix develop --command bundle exec rake test rubocop yard typecheck package_check
+      - run: nix develop --command pinact run --fix=false --no-api
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: doc
+
+  deploy_docs:
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    needs: [test, quality]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+        id: deployment

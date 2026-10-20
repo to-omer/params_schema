@@ -1,0 +1,63 @@
+---
+- file: test/types/invalid.rb
+  diagnostics:
+  - range:
+      start:
+        line: 4
+        character: 29
+      end:
+        line: 4
+        character: 35
+    severity: ERROR
+    message: The method cannot be called without a block
+    code: Ruby::RequiredBlockMissing
+  - range:
+      start:
+        line: 7
+        character: 0
+      end:
+        line: 7
+        character: 76
+    severity: ERROR
+    message: |-
+      Cannot find compatible overloading of method `parse` of type `::ActionController::Parameters`
+      Method types:
+        def parse: (::ParamsSchema::Schema) -> ::ActionController::Parameters
+                 | (?name: (::String | ::Symbol | nil), ?unknown: ::ParamsSchema::unknown_policy, ?reject_empty: bool) { (::ParamsSchema::Builder) -> void } -> ::ActionController::Parameters
+    code: Ruby::UnresolvedOverloading
+  - range:
+      start:
+        line: 10
+        character: 20
+      end:
+        line: 10
+        character: 30
+    severity: ERROR
+    message: |-
+      Cannot pass a value of type `::Object` as an argument of type `::ParamsSchema::element_rule`
+        ::Object <: ::ParamsSchema::element_rule
+          ::Object <: (::ParamsSchema::primitive_type | :hash | ::ParamsSchema::value_rule)
+            ::Object <: ::ParamsSchema::primitive_type
+              ::Object <: (:string | :integer | :float | :boolean | :scalar | :uploaded_file)
+                ::Object <: :string
+    code: Ruby::ArgumentTypeMismatch
+  - range:
+      start:
+        line: 13
+        character: 26
+      end:
+        line: 13
+        character: 32
+    severity: ERROR
+    message: Type `::ActionController::Parameters` does not have method `upcase`
+    code: Ruby::NoMethod
+  - range:
+      start:
+        line: 14
+        character: 26
+      end:
+        line: 14
+        character: 55
+    severity: ERROR
+    message: The method cannot be called with a block
+    code: Ruby::UnexpectedBlockGiven

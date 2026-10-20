@@ -1,0 +1,10 @@
+.bundle/
+/.direnv/
+/vendor/bundle/
+/*.gem
+/coverage/
+/pkg/
+/result
+/.yardoc/
+/doc/
+/.gem_rbs_collection/

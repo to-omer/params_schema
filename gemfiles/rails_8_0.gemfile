@@ -1,0 +1,7 @@
+# frozen_string_literal: true
+
+eval_gemfile "../Gemfile"
+
+gem "actionpack", "~> 8.0.0"
+# Rails 8.0 passes generator options that JSON 3 no longer accepts.
+gem "json", "~> 2.0"

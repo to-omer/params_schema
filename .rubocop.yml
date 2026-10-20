@@ -1,0 +1,24 @@
+inherit_gem:
+  rubocop-rails-omakase: rubocop.yml
+
+plugins:
+  - rubocop-minitest
+
+AllCops:
+  NewCops: enable
+
+Bundler:
+  Enabled: true
+
+Gemspec:
+  Enabled: true
+
+Lint:
+  Enabled: true
+
+Security:
+  Enabled: true
+
+# One parsing operation must preserve content, permission state, and ownership together.
+Minitest/MultipleAssertions:
+  Enabled: false

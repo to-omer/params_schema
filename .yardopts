@@ -1,0 +1,12 @@
+--markup markdown
+--title "Params Schema"
+--readme docs/index.md
+--private
+--no-private
+--fail-on-warning
+lib/**/*.rb
+-
+docs/integration.md
+docs/forms.md
+docs/errors.md
+docs/test_support.md
